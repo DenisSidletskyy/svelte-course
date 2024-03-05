@@ -1,21 +1,24 @@
-import { error } from '@sveltejs/kit';
-import { adminAuth, adminDB } from '$lib/server/admin';
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad } from "./$types";
+import { adminAuth, adminDB } from "$lib/server/admin";
+import { error, redirect } from "@sveltejs/kit";
 
-export const load = (async ({ cookies }) => {
-    const sessionCookie = cookies.get('__session');
+export const load = (async ({ locals, params }) => {
 
-    try {
-        const decodeClaims = await adminAuth.verifySessionCookie(sessionCookie!)
-        const userDoc = await adminDB.collection('users').doc(decodeClaims.uid).get();
-        const userData = userDoc.data();
+    const uid = locals.userID;
 
-        return {
-            bio: userData?.bio
-        }
-    } catch (e) {
-        console.log(e);
-
-        throw error(401, 'Unauthorized request!')
+    if (!uid) {
+      throw redirect(301, "/login");
     }
+  
+    const userDoc = await adminDB.collection("users").doc(uid).get();
+    const { username, bio } = userDoc.data()!;
+  
+    if (params.username !== username) {
+      throw error(401, "That username does not belong to you");
+    }
+  
+  
+    return {
+      bio,
+    };
 }) satisfies PageServerLoad;
